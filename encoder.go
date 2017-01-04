@@ -126,7 +126,7 @@ func (e *Encoder) writeHeader() error {
 		return fmt.Errorf("%v when writing comm chan numbers", err)
 	}
 	// sample rate in IeeeFloat (10 bytes)
-	if err := e.AddBE(audio.IntToIeeeFloat(int(e.SampleRate))); err != nil {
+	if err := e.AddBE(audio.IntToIEEEFloat(int(e.SampleRate))); err != nil {
 		return fmt.Errorf("%v when writing comm sample rate", err)
 	}
 	return nil
