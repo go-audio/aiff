@@ -426,7 +426,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		d.err = fmt.Errorf("sample rate failed to parse - %s", d.err)
 		return d.err
 	}
-	d.SampleRate = audio.IeeeFloatToInt(srBytes)
+	d.SampleRate = audio.IEEEFloatToInt(srBytes)
 
 	if d.Format == aifcID {
 		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
