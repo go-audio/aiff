@@ -73,8 +73,8 @@ func TestContainerAttributes(t *testing.T) {
 		if d.NumChans != exp.numChans {
 			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.NumChans)
 		}
-		if d.numSampleFrames != exp.numSampleFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.numSampleFrames)
+		if d.NumSampleFrames != exp.numSampleFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.NumSampleFrames)
 		}
 		if d.BitDepth != exp.sampleSize {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.BitDepth)
@@ -179,7 +179,7 @@ func TestDecoderPCMBuffer(t *testing.T) {
 
 		intBuf := make([]int, len(tc.samples))
 		buf := &audio.IntBuffer{Data: intBuf}
-		err = d.PCMBuffer(buf)
+		_, err = d.PCMBuffer(buf)
 		if err != nil {
 			t.Fatal(err)
 		}
