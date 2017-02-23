@@ -49,6 +49,11 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		defer in.Close()
 
+		expectedSize := int(d.NumSampleFrames) * int(d.NumChans)
+		if len(buf.Data) != expectedSize {
+			t.Errorf("based on headers, expected the buffer len to be %d but was %d", expectedSize, len(buf.Data))
+		}
+
 		// encode the decoded file
 		out, err := os.Create(tc.out)
 		if err != nil {
@@ -103,11 +108,10 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if buf.NumFrames() != d2buf.NumFrames() {
 			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", buf.NumFrames(), d2buf.NumFrames())
 		}
-		originalSamples := buf.Data
 		newSamples := d2buf.Data
-		for i := 0; i < len(originalSamples); i++ {
-			if originalSamples[i] != newSamples[i] {
-				t.Fatalf("%d didn't match, expected %d, got %d", i, originalSamples[i], newSamples[i])
+		for i := 0; i < len(buf.Data); i++ {
+			if buf.Data[i] != newSamples[i] {
+				t.Fatalf("%s - Sample at position %d didn't match, expected %d, got %d", tc.in, i, buf.Data[i], newSamples[i])
 			}
 		}
 

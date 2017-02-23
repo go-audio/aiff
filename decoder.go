@@ -506,18 +506,12 @@ func sampleDecodeFunc(bitDepth int) (func(io.Reader) (int, error), error) {
 		}, nil
 	case 24:
 		return func(r io.Reader) (int, error) {
-			// TODO: check if the conversion might not be inversed depending on
-			// the encoding (BE vs LE)
-			var output int32
-			d := make([]byte, 3)
-			_, err := r.Read(d)
+			sample := make([]byte, 3)
+			_, err := r.Read(sample)
 			if err != nil {
 				return 0, err
 			}
-			output |= int32(d[2]) << 0
-			output |= int32(d[1]) << 8
-			output |= int32(d[0]) << 16
-			return int(output), nil
+			return int(audio.Int24BETo32(sample)), nil
 		}, nil
 	case 32:
 		return func(r io.Reader) (int, error) {

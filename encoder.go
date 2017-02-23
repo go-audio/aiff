@@ -1,6 +1,7 @@
 package aiff
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -51,25 +52,27 @@ func (e *Encoder) addBuffer(buf *audio.IntBuffer) error {
 	}
 
 	frameCount := buf.NumFrames()
+	// setup a buffer so we don't do many writes
+	bb := bytes.NewBuffer(nil)
+	var err error
 	for i := 0; i < frameCount; i++ {
-		// TODO(mattetti): support float encoded wav files
 		for j := 0; j < buf.Format.NumChannels; j++ {
 			v := buf.Data[i*buf.Format.NumChannels+j]
 			switch e.BitDepth {
 			case 8:
-				if err := e.AddBE(uint8(v)); err != nil {
+				if err = binary.Write(bb, binary.BigEndian, uint8(v)); err != nil {
 					return err
 				}
 			case 16:
-				if err := e.AddBE(uint16(v)); err != nil {
+				if err = binary.Write(bb, binary.BigEndian, int16(v)); err != nil {
 					return err
 				}
 			case 24:
-				if err := e.AddBE(audio.Uint32toUint24Bytes(uint32(v))); err != nil {
+				if err = binary.Write(bb, binary.BigEndian, audio.Int32toInt24BEBytes(int32(v))); err != nil {
 					return err
 				}
 			case 32:
-				if err := e.AddBE(uint32(v)); err != nil {
+				if err = binary.Write(bb, binary.BigEndian, int32(v)); err != nil {
 					return err
 				}
 			default:
@@ -78,8 +81,10 @@ func (e *Encoder) addBuffer(buf *audio.IntBuffer) error {
 		}
 		e.frames++
 	}
+	n, err := e.w.Write(bb.Bytes())
+	e.WrittenBytes += n
+	return err
 
-	return nil
 }
 
 func (e *Encoder) writeHeader() error {
