@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"bytes"
+
 	"github.com/go-audio/audio"
 )
 
@@ -314,16 +316,30 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	// populate the file buffer to avoid multiple very small reads
+	tmpBuf := make([]byte, len(buf.Data)*(int(d.BitDepth)/8))
+	var m int
+	m, err = d.r.Read(tmpBuf)
+	if m == 0 && err != nil {
+		if err == io.EOF {
+			return 0, nil
+		}
+		return m, err
+	}
+	bufR := bytes.NewReader(tmpBuf[:m])
+
 	// Note that we populate the buffer even if the
 	// size of the buffer doesn't fit an even number of frames.
 	for n = 0; n < len(buf.Data); n++ {
-		buf.Data[n], err = decodeF(d.r)
+		buf.Data[n], err = decodeF(bufR)
 		if err != nil {
 			break
 		}
 	}
 	buf.Format = format
-
+	if err == io.EOF {
+		err = nil
+	}
 	return n, err
 }
 

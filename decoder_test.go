@@ -179,9 +179,12 @@ func TestDecoderPCMBuffer(t *testing.T) {
 
 		intBuf := make([]int, len(tc.samples))
 		buf := &audio.IntBuffer{Data: intBuf}
-		_, err = d.PCMBuffer(buf)
+		n, err := d.PCMBuffer(buf)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if n != len(tc.samples) {
+			t.Fatalf("expected to have read %d samples, but read %d", len(tc.samples), n)
 		}
 		if len(buf.Data) != len(tc.samples) {
 			t.Fatalf("the length of the buffer (%d) didn't match what we expected (%d)", len(buf.Data), len(tc.samples))
