@@ -84,7 +84,6 @@ func (e *Encoder) addBuffer(buf *audio.IntBuffer) error {
 	n, err := e.w.Write(bb.Bytes())
 	e.WrittenBytes += n
 	return err
-
 }
 
 func (e *Encoder) writeHeader() error {

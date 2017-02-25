@@ -316,11 +316,13 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
-	// populate the file buffer to avoid multiple very small reads
-	tmpBuf := make([]byte, len(buf.Data)*(int(d.BitDepth)/8))
+	// populate a file buffer to avoid multiple very small reads
+	// we need to cap the buffer size to not be bigger than the pcm chunk.
+	size := len(buf.Data) * (int(d.BitDepth) / 8)
+	tmpBuf := make([]byte, size)
 	var m int
-	m, err = d.r.Read(tmpBuf)
-	if m == 0 && err != nil {
+	m, err = d.PCMChunk.R.Read(tmpBuf)
+	if m == 0 || err != nil {
 		if err == io.EOF {
 			return 0, nil
 		}
