@@ -301,7 +301,7 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 	if !d.WasPCMAccessed() {
 		err = d.FwdToPCM()
 		if err != nil {
-			return 0, d.err
+			return 0, err
 		}
 	}
 
@@ -322,11 +322,14 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 	tmpBuf := make([]byte, size)
 	var m int
 	m, err = d.PCMChunk.R.Read(tmpBuf)
-	if m == 0 || err != nil {
+	if err != nil {
 		if err == io.EOF {
-			return 0, nil
+			return m, nil
 		}
 		return m, err
+	}
+	if m == 0 {
+		return m, nil
 	}
 	bufR := bytes.NewReader(tmpBuf[:m])
 
@@ -342,6 +345,7 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 	if err == io.EOF {
 		err = nil
 	}
+
 	return n, err
 }
 
