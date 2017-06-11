@@ -157,12 +157,14 @@ func TestDecoder_FullPCMBuffer(t *testing.T) {
 
 func TestDecoderPCMBuffer(t *testing.T) {
 	testCases := []struct {
-		input   string
-		desc    string
-		samples []int
+		input    string
+		desc     string
+		bitDepth int
+		samples  []int
 	}{
 		{"fixtures/kick.aif",
 			"1 ch,  22050 Hz, 'lpcm' (0x0000000E) 16-bit big-endian signed integer",
+			16,
 			[]int{76, 76, 75, 75, 72, 71, 72, 69, 70, 68, 65, 73, 529, 1425, 2245, 2941, 3514, 3952, 4258, 4436, 4486, 4413, 4218, 3903, 3474, 2938, 2295, 1553, 711, -214, -1230, -2321, -3489, -4721, -6007, -7352, -8738, -10172, -11631, -13127, -14642, -16029, -17322, -18528, -19710, -20877},
 		},
 	}
@@ -182,6 +184,9 @@ func TestDecoderPCMBuffer(t *testing.T) {
 		n, err := d.PCMBuffer(buf)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if buf.SourceBitDepth != tc.bitDepth {
+			t.Fatalf("expected source depth to be %d but got %d", tc.bitDepth, buf.SourceBitDepth)
 		}
 		if n != len(tc.samples) {
 			t.Fatalf("expected to have read %d samples, but read %d", len(tc.samples), n)
