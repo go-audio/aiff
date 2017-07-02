@@ -264,7 +264,8 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		SampleRate:  int(d.SampleRate),
 	}
 
-	buf := &audio.IntBuffer{Data: make([]int, 4096),
+	chunkSize := 4096
+	buf := &audio.IntBuffer{Data: make([]int, chunkSize),
 		Format:         format,
 		SourceBitDepth: int(d.BitDepth),
 	}
@@ -273,16 +274,49 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	n := 0
 	i := 0
+	chunkSize = 2048 * bytesPerSample(buf.SourceBitDepth)
+	sizeToRead := chunkSize
+	var innerErr error
 	for err == nil {
-		buf.Data[i], err = decodeF(d.PCMChunk)
-		if err != nil {
+		// to avoid doing too many small reads (bad performance)
+		// we are loading part of the chunk in memory and reading from there
+		sizeToRead = chunkSize
+		if adjust := sizeToRead % bytesPerSample(buf.SourceBitDepth); adjust != 0 {
+			fmt.Println("should be 0:", adjust, sizeToRead, buf.SourceBitDepth)
+		}
+
+		if leftOverSize := d.PCMChunk.Size - d.PCMChunk.Pos; leftOverSize < chunkSize {
+			sizeToRead = leftOverSize
+		}
+		if sizeToRead < 1 {
 			break
 		}
-		i++
-		// grow the underlying slice if needed
-		if i == len(buf.Data) {
-			buf.Data = append(buf.Data, make([]int, 4096)...)
+		optBuf := make([]byte, sizeToRead)
+		n, err = d.PCMChunk.Read(optBuf)
+		if err != nil {
+			fmt.Println("-->", sizeToRead, err)
+			break
+		}
+		if n != sizeToRead {
+			optBuf = optBuf[:n]
+		}
+
+		bufReader := bytes.NewReader(optBuf)
+		for innerErr == nil {
+			buf.Data[i], innerErr = decodeF(bufReader)
+			if innerErr != nil {
+				if innerErr == io.EOF {
+					innerErr = nil
+				}
+				break
+			}
+			i++
+			// grow the underlying slice if needed
+			if i >= len(buf.Data) {
+				buf.Data = append(buf.Data, make([]int, chunkSize)...)
+			}
 		}
 	}
 	buf.Data = buf.Data[:i]
@@ -513,6 +547,10 @@ func (d *Decoder) jumpTo(bytesAhead int) error {
 		_, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
 	}
 	return err
+}
+
+func bytesPerSample(bitDepth int) int {
+	return bitDepth / 8
 }
 
 func sampleDecodeFunc(bitDepth int) (func(io.Reader) (int, error), error) {

@@ -1,15 +1,34 @@
 package aiff
 
 import (
+	"flag"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"testing"
 	"time"
 
 	"github.com/go-audio/audio"
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+
 // TODO(mattetti): benchmark allocations
+
+func init() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+}
 
 func TestContainerAttributes(t *testing.T) {
 	expectations := []struct {
