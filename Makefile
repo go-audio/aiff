@@ -2,7 +2,7 @@ default: *.go
 	go test -v ./...
 
 install:
-  - go get -u github.com/go-audio/audio
+	go get -u github.com/go-audio/audio
 
 testprof: *.go
 	go test -cpuprofile cpu.prof
