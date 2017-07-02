@@ -7,7 +7,11 @@ var (
 	aiffID = [4]byte{'A', 'I', 'F', 'F'}
 	aifcID = [4]byte{'A', 'I', 'F', 'C'}
 	COMMID = [4]byte{'C', 'O', 'M', 'M'}
+	COMTID = [4]byte{'C', 'O', 'M', 'T'}
 	SSNDID = [4]byte{'S', 'S', 'N', 'D'}
+
+	chanID = [4]byte{'C', 'H', 'A', 'N'}
+	bascID = [4]byte{'b', 'a', 's', 'c'}
 
 	// AIFC encodings
 	encNone = [4]byte{'N', 'O', 'N', 'E'}
@@ -39,4 +43,7 @@ var (
 	ErrFmtNotSupported = errors.New("format not supported")
 	// ErrUnexpectedData is a generic error reporting that the parser encountered unexpected data.
 	ErrUnexpectedData = errors.New("unexpected data content")
+
+	// Debug is a flag that can be turned on to see more logs
+	Debug = false
 )

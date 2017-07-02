@@ -220,8 +220,25 @@ func (d *Decoder) FwdToPCM() error {
 			d.PCMChunk = chunk
 			d.pcmDataAccessed = true
 			return d.err
-
+		// Comments Chunk The Comments Chunk is used to store comments in the
+		// FORM AIFF. Standard IFF has an Annotation Chunk that can also be used
+		// for comments, but this new Comments Chunk has two fields (per
+		// comment) not found in the Standard IFF chunk
+		case COMTID:
+			fmt.Printf("skipping comments chunk %#v\n", chunk)
+			// commentsBody := make([]byte, chunk.Size)
+			// _, err := chunk.Read(commentsBody)
+			// if err != nil {
+			// 	fmt.Println("failed to read comments", err)
+			// }
+			// fmt.Println(hex.Dump(commentsBody))
+			chunk.Done()
+		case chanID:
+			// TODO:
 		default:
+			if Debug {
+				fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
+			}
 			// if we read SSN but didn't read the COMM, we need to track location
 			if d.SampleRate == 0 {
 				rewindBytes += int64(chunk.Size)

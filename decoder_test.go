@@ -14,8 +14,6 @@ import (
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
 
-// TODO(mattetti): benchmark allocations
-
 func init() {
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -28,6 +26,7 @@ func init() {
 		}
 		defer pprof.StopCPUProfile()
 	}
+	Debug = true
 }
 
 func TestContainerAttributes(t *testing.T) {
@@ -45,10 +44,13 @@ func TestContainerAttributes(t *testing.T) {
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
 			18, 1, 4484, 16, 22050, 4484},
+		{"fixtures/ring.aif", formID, 354310, aiffID,
+			18, 2, 88064, 16, 44100, 88064},
 	}
 
 	for _, exp := range expectations {
 		path, _ := filepath.Abs(exp.input)
+		t.Log(path)
 		f, err := os.Open(path)
 		if err != nil {
 			t.Fatal(err)
