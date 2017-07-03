@@ -36,6 +36,11 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 		if err := d.parseCommentsChunk(chunk); err != nil {
 			fmt.Println("failed to read comments", err)
 		}
+	// Apple/Logic specific chunk
+	case bascID:
+		if err := d.parseBascChunk(chunk); err != nil {
+			fmt.Println("failed to read BASC chunk", err)
+		}
 	// Apple specific: packed struct AudioChannelLayout of CoreAudio
 	case chanID:
 		// See https://github.com/nu774/qaac/blob/ce73aac9bfba459c525eec5350da6346ebf547cf/chanmap.cpp
@@ -76,6 +81,27 @@ func (d *Decoder) parseCommentsChunk(chunk *Chunk) error {
 		br.Read(textB)
 		d.Comments = append(d.Comments, string(bytes.TrimRight(textB, "\x00")))
 	}
+	chunk.Done()
+	return nil
+}
+
+// parseBascChunk processes the Apple specific BASC chunk
+func (d *Decoder) parseBascChunk(chunk *Chunk) error {
+	if chunk.ID != bascID {
+		return fmt.Errorf("unexpected BASC chunk ID: %q", chunk.ID)
+	}
+	d.HasAppleInfo = true
+
+	var version uint32
+	binary.Read(chunk.R, binary.BigEndian, &version)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Beats)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Note)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Scale)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Numerator)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Denominator)
+	chunk.ReadByte()
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Looping)
+
 	chunk.Done()
 	return nil
 }

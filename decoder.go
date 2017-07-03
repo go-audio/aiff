@@ -44,6 +44,10 @@ type Decoder struct {
 	Encoding     [4]byte
 	EncodingName string
 
+	// Apple specific
+	HasAppleInfo bool
+	AppleInfo    AppleMetadata
+
 	err             error
 	pcmDataAccessed bool
 
