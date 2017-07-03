@@ -41,11 +41,12 @@ func TestContainerAttributes(t *testing.T) {
 		sampleSize      uint16
 		sampleRate      int
 		totalFrames     int64
+		comments        []string
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
-			18, 1, 4484, 16, 22050, 4484},
+			18, 1, 4484, 16, 22050, 4484, nil},
 		{"fixtures/ring.aif", formID, 354310, aiffID,
-			18, 2, 88064, 16, 44100, 88064},
+			18, 2, 88064, 16, 44100, 88064, []string{"Creator: Logic"}},
 	}
 
 	for _, exp := range expectations {
@@ -102,6 +103,14 @@ func TestContainerAttributes(t *testing.T) {
 		}
 		if d.SampleRate != exp.sampleRate {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
+		}
+		if len(d.Comments) != len(exp.comments) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "number of comments", exp.input, len(exp.comments), len(d.Comments))
+		}
+		for i, c := range d.Comments {
+			if c != exp.comments[i] {
+				t.Fatalf("expected comment of %s to be %q but was %q\n", exp.input, exp.comments[i], c)
+			}
 		}
 	}
 }

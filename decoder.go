@@ -37,6 +37,8 @@ type Decoder struct {
 	//
 	PCMSize  uint32
 	PCMChunk *Chunk
+	//
+	Comments []string
 
 	// AIFC data
 	Encoding     [4]byte
@@ -225,16 +227,28 @@ func (d *Decoder) FwdToPCM() error {
 		// for comments, but this new Comments Chunk has two fields (per
 		// comment) not found in the Standard IFF chunk
 		case COMTID:
-			fmt.Printf("skipping comments chunk %#v\n", chunk)
-			// commentsBody := make([]byte, chunk.Size)
-			// _, err := chunk.Read(commentsBody)
-			// if err != nil {
-			// 	fmt.Println("failed to read comments", err)
-			// }
-			// fmt.Println(hex.Dump(commentsBody))
+			commentsBody := make([]byte, chunk.Size)
+			_, err := chunk.Read(commentsBody)
+			if err != nil {
+				fmt.Println("failed to read comments", err)
+			}
+			br := bytes.NewReader(commentsBody)
+			var nbrComments uint16
+			binary.Read(br, binary.BigEndian, &nbrComments)
+			for i := 0; i < int(nbrComments); i++ {
+				// TODO extract marker id and timestamp
+				br.Seek(8, io.SeekCurrent)
+				b, _ := br.ReadByte()
+				textB := make([]byte, int(b))
+				br.Read(textB)
+				d.Comments = append(d.Comments, string(bytes.TrimRight(textB, "\x00")))
+			}
 			chunk.Done()
+		// Apple specific: packed struct AudioChannelLayout of CoreAudio
 		case chanID:
-			// TODO:
+			// See https://github.com/nu774/qaac/blob/ce73aac9bfba459c525eec5350da6346ebf547cf/chanmap.cpp
+			// for format information
+			chunk.Done()
 		default:
 			if Debug {
 				fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
