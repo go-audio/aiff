@@ -100,7 +100,7 @@ func (d *Decoder) parseBascChunk(chunk *Chunk) error {
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Numerator)
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Denominator)
 	chunk.ReadByte()
-	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Looping)
+	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.IsLooping)
 
 	chunk.Done()
 	return nil

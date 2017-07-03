@@ -14,7 +14,7 @@ func TestDecoder_parseBascChunk(t *testing.T) {
 		info    AppleMetadata
 	}{
 		{"no apple metadata", "fixtures/kick.aif", false, AppleMetadata{}},
-		{"full data", "fixtures/ring.aif", true, AppleMetadata{Beats: 3, Note: 48, Scale: 2, Numerator: 4, Denominator: 4, Looping: true}},
+		{"full data", "fixtures/ring.aif", true, AppleMetadata{Beats: 3, Note: 48, Scale: 2, Numerator: 4, Denominator: 4, IsLooping: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -48,8 +48,8 @@ func TestDecoder_parseBascChunk(t *testing.T) {
 				if tt.info.Denominator != d.AppleInfo.Denominator {
 					t.Fatalf("expected to have its denominator set to %d but got %d", tt.info.Denominator, d.AppleInfo.Denominator)
 				}
-				if tt.info.Looping != d.AppleInfo.Looping {
-					t.Fatalf("expected to have its Looping set to %T but got %T", tt.info.Looping, d.AppleInfo.Looping)
+				if tt.info.IsLooping != d.AppleInfo.IsLooping {
+					t.Fatalf("expected to have its looping set to %T but got %T", tt.info.IsLooping, d.AppleInfo.IsLooping)
 				}
 			}
 		})
