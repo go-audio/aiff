@@ -6,6 +6,7 @@ var (
 	formID = [4]byte{'F', 'O', 'R', 'M'}
 	aiffID = [4]byte{'A', 'I', 'F', 'F'}
 	aifcID = [4]byte{'A', 'I', 'F', 'C'}
+	// COMMID is the common chunk ID
 	COMMID = [4]byte{'C', 'O', 'M', 'M'}
 	COMTID = [4]byte{'C', 'O', 'M', 'T'}
 	SSNDID = [4]byte{'S', 'S', 'N', 'D'}
