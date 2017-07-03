@@ -62,6 +62,9 @@ func TestContainerAttributes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if err := d.Drain(); err != nil {
+			t.Fatalf("draining %s failed - %s\n", path, err)
+		}
 
 		if int(d.BitDepth) != int(exp.sampleSize) {
 			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, d.BitDepth)

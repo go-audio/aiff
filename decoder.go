@@ -46,6 +46,10 @@ type Decoder struct {
 
 	err             error
 	pcmDataAccessed bool
+
+	// read the file information to setup the audio clip
+	// find the beginning of the SSND chunk and set the clip reader to it.
+	rewindBytes int64
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
@@ -119,6 +123,9 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 
 	id, size, d.err = d.iDnSize()
 	if d.err != nil {
+		if d.err == io.EOF {
+			return nil, d.err
+		}
 		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
 		return nil, d.err
 	}
@@ -163,6 +170,27 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return duration, nil
 }
 
+// Drain parses the remaining chunks
+func (d *Decoder) Drain() error {
+	var chunk *Chunk
+	for d.err == nil {
+		chunk, d.err = d.NextChunk()
+		if d.err != nil {
+			if d.err == io.EOF {
+				return nil
+			}
+			return d.err
+		}
+		if err := d.parseChunk(chunk); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+	return d.err
+}
+
 // FwdToPCM forwards the underlying reader until the start of the PCM chunk.
 // If the PCM chunk was already read, no data will be found (you need to rewind).
 func (d *Decoder) FwdToPCM() error {
@@ -171,28 +199,14 @@ func (d *Decoder) FwdToPCM() error {
 		return nil
 	}
 
-	// read the file information to setup the audio clip
-	// find the beginning of the SSND chunk and set the clip reader to it.
-	var rewindBytes int64
-
 	var chunk *Chunk
 	for d.err == nil {
 		chunk, d.err = d.NextChunk()
 		if d.err != nil {
 			return d.err
 		}
-		switch chunk.ID {
-		case COMMID:
-			if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
-				return err
-			}
-			// if we found the sound data before the COMM,
-			// we need to rewind the reader so we can properly
-			// set the clip reader.
-			if rewindBytes > 0 {
-				d.r.Seek(-rewindBytes, 1)
-			}
-		case SSNDID:
+
+		if chunk.ID == SSNDID {
 			//            SSND chunk: Must be defined
 			//   0      4 bytes  "SSND"
 			//   4      4 bytes  <Chunk size(x)>
@@ -222,45 +236,73 @@ func (d *Decoder) FwdToPCM() error {
 			d.PCMChunk = chunk
 			d.pcmDataAccessed = true
 			return d.err
-		// Comments Chunk The Comments Chunk is used to store comments in the
-		// FORM AIFF. Standard IFF has an Annotation Chunk that can also be used
-		// for comments, but this new Comments Chunk has two fields (per
-		// comment) not found in the Standard IFF chunk
-		case COMTID:
-			commentsBody := make([]byte, chunk.Size)
-			_, err := chunk.Read(commentsBody)
-			if err != nil {
-				fmt.Println("failed to read comments", err)
-			}
-			br := bytes.NewReader(commentsBody)
-			var nbrComments uint16
-			binary.Read(br, binary.BigEndian, &nbrComments)
-			for i := 0; i < int(nbrComments); i++ {
-				// TODO extract marker id and timestamp
-				br.Seek(8, io.SeekCurrent)
-				b, _ := br.ReadByte()
-				textB := make([]byte, int(b))
-				br.Read(textB)
-				d.Comments = append(d.Comments, string(bytes.TrimRight(textB, "\x00")))
-			}
-			chunk.Done()
-		// Apple specific: packed struct AudioChannelLayout of CoreAudio
-		case chanID:
-			// See https://github.com/nu774/qaac/blob/ce73aac9bfba459c525eec5350da6346ebf547cf/chanmap.cpp
-			// for format information
-			chunk.Done()
-		default:
-			if Debug {
-				fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
-			}
-			// if we read SSN but didn't read the COMM, we need to track location
-			if d.SampleRate == 0 {
-				rewindBytes += int64(chunk.Size)
-			}
-			chunk.Done()
+		}
+
+		if err := d.parseChunk(chunk); err != nil {
+			return err
 		}
 	}
 	return d.err
+}
+
+func (d *Decoder) parseChunk(chunk *Chunk) error {
+	if chunk == nil {
+		return nil
+	}
+
+	switch chunk.ID {
+	case COMMID:
+		if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
+			return err
+		}
+		// if we found the sound data before the COMM,
+		// we need to rewind the reader so we can properly
+		// set the clip reader.
+		if d.rewindBytes > 0 {
+			d.r.Seek(-d.rewindBytes, 1)
+			d.rewindBytes = 0
+		}
+	// audio content, should be read a different way
+	case SSNDID:
+		chunk.Done()
+	// Comments Chunk The Comments Chunk is used to store comments in the
+	// FORM AIFF. Standard IFF has an Annotation Chunk that can also be used
+	// for comments, but this new Comments Chunk has two fields (per
+	// comment) not found in the Standard IFF chunk
+	case COMTID:
+		commentsBody := make([]byte, chunk.Size)
+		_, err := chunk.Read(commentsBody)
+		if err != nil {
+			fmt.Println("failed to read comments", err)
+		}
+		br := bytes.NewReader(commentsBody)
+		var nbrComments uint16
+		binary.Read(br, binary.BigEndian, &nbrComments)
+		for i := 0; i < int(nbrComments); i++ {
+			// TODO extract marker id and timestamp
+			br.Seek(8, io.SeekCurrent)
+			b, _ := br.ReadByte()
+			textB := make([]byte, int(b))
+			br.Read(textB)
+			d.Comments = append(d.Comments, string(bytes.TrimRight(textB, "\x00")))
+		}
+		chunk.Done()
+	// Apple specific: packed struct AudioChannelLayout of CoreAudio
+	case chanID:
+		// See https://github.com/nu774/qaac/blob/ce73aac9bfba459c525eec5350da6346ebf547cf/chanmap.cpp
+		// for format information
+		chunk.Done()
+	default:
+		if Debug {
+			fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
+		}
+		// if we read SSN but didn't read the COMM, we need to track location
+		if d.SampleRate == 0 {
+			d.rewindBytes += int64(chunk.Size)
+		}
+		chunk.Done()
+	}
+	return nil
 }
 
 // Reset resets the decoder (and rewind the underlying reader)
