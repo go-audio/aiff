@@ -46,6 +46,18 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 		// See https://github.com/nu774/qaac/blob/ce73aac9bfba459c525eec5350da6346ebf547cf/chanmap.cpp
 		// for format information
 		chunk.Done()
+	// Apple specific transient data
+	case trnsID:
+		// TODO extract ans store the transients
+		// skip 72
+		// nTransients uint32
+		// transients := make([]uint32, nTransients)
+		// for i := 0; i < nTransients; i ++ {
+		// skip 4
+		// binary.Read &transients[i]
+		// skip 16
+		// }
+		chunk.Done()
 	default:
 		if Debug {
 			fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))

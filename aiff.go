@@ -13,6 +13,7 @@ var (
 
 	chanID = [4]byte{'C', 'H', 'A', 'N'}
 	bascID = [4]byte{'b', 'a', 's', 'c'}
+	trnsID = [4]byte{'t', 'r', 'n', 's'}
 
 	// AIFC encodings
 	encNone = [4]byte{'N', 'O', 'N', 'E'}
