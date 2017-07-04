@@ -37,13 +37,23 @@ type Decoder struct {
 	//
 	PCMSize  uint32
 	PCMChunk *Chunk
+	//
+	Comments []string
 
 	// AIFC data
 	Encoding     [4]byte
 	EncodingName string
 
+	// Apple specific
+	HasAppleInfo bool
+	AppleInfo    AppleMetadata
+
 	err             error
 	pcmDataAccessed bool
+
+	// read the file information to setup the audio clip
+	// find the beginning of the SSND chunk and set the clip reader to it.
+	rewindBytes int64
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
@@ -117,6 +127,9 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 
 	id, size, d.err = d.iDnSize()
 	if d.err != nil {
+		if d.err == io.EOF {
+			return nil, d.err
+		}
 		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
 		return nil, d.err
 	}
@@ -161,6 +174,39 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return duration, nil
 }
 
+// Tempo returns a tempo when available, otherwise -1
+func (d *Decoder) Tempo() float64 {
+	if d == nil || !d.HasAppleInfo || d.AppleInfo.Beats < 1 {
+		return -1
+	}
+	duration, err := d.Duration()
+	if err != nil {
+		return -1
+	}
+	return round(float64(d.AppleInfo.Beats)/(duration.Seconds()/60.0), 2)
+}
+
+// Drain parses the remaining chunks
+func (d *Decoder) Drain() error {
+	var chunk *Chunk
+	for d.err == nil {
+		chunk, d.err = d.NextChunk()
+		if d.err != nil {
+			if d.err == io.EOF {
+				return nil
+			}
+			return d.err
+		}
+		if err := d.parseChunk(chunk); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+	return d.err
+}
+
 // FwdToPCM forwards the underlying reader until the start of the PCM chunk.
 // If the PCM chunk was already read, no data will be found (you need to rewind).
 func (d *Decoder) FwdToPCM() error {
@@ -169,28 +215,14 @@ func (d *Decoder) FwdToPCM() error {
 		return nil
 	}
 
-	// read the file information to setup the audio clip
-	// find the beginning of the SSND chunk and set the clip reader to it.
-	var rewindBytes int64
-
 	var chunk *Chunk
 	for d.err == nil {
 		chunk, d.err = d.NextChunk()
 		if d.err != nil {
 			return d.err
 		}
-		switch chunk.ID {
-		case COMMID:
-			if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
-				return err
-			}
-			// if we found the sound data before the COMM,
-			// we need to rewind the reader so we can properly
-			// set the clip reader.
-			if rewindBytes > 0 {
-				d.r.Seek(-rewindBytes, 1)
-			}
-		case SSNDID:
+
+		if chunk.ID == SSNDID {
 			//            SSND chunk: Must be defined
 			//   0      4 bytes  "SSND"
 			//   4      4 bytes  <Chunk size(x)>
@@ -220,13 +252,10 @@ func (d *Decoder) FwdToPCM() error {
 			d.PCMChunk = chunk
 			d.pcmDataAccessed = true
 			return d.err
+		}
 
-		default:
-			// if we read SSN but didn't read the COMM, we need to track location
-			if d.SampleRate == 0 {
-				rewindBytes += int64(chunk.Size)
-			}
-			chunk.Done()
+		if err := d.parseChunk(chunk); err != nil {
+			return err
 		}
 	}
 	return d.err
@@ -398,6 +427,31 @@ func (d *Decoder) String() string {
 		dur, _ := d.Duration()
 		out += fmt.Sprintf("Duration: %f seconds\n", dur.Seconds())
 	}
+	if len(d.Comments) > 0 {
+		for _, comment := range d.Comments {
+			out += fmt.Sprintln(comment)
+		}
+	}
+	if d.HasAppleInfo {
+		out += fmt.Sprintln("Key note:", AppleNoteToPitch(d.AppleInfo.Note))
+		out += fmt.Sprintln("Scale:", AppleScaleToString(d.AppleInfo.Scale))
+		out += fmt.Sprintf("Tempo: %.2f BPM\n", d.Tempo())
+		out += fmt.Sprintf("Number of beats: %d\n", d.AppleInfo.Beats)
+		out += fmt.Sprintf("Time signature: %d/%d\n", d.AppleInfo.Numerator, d.AppleInfo.Denominator)
+		var format string
+		if d.AppleInfo.IsLooping {
+			format = "loop"
+		} else {
+			format = "one-shot"
+		}
+		out += fmt.Sprintln("Sample format:", format)
+		if len(d.AppleInfo.Tags) > 0 {
+			out += "Tags:\n"
+			for _, tag := range d.AppleInfo.Tags {
+				out += fmt.Sprintln("\t" + tag)
+			}
+		}
+	}
 	return out
 }
 
@@ -475,10 +529,19 @@ func (d *Decoder) ReadInfo() {
 			// we need to rewind the reader so we can properly
 			// read the rest later.
 			if rewindBytes > 0 {
-				d.r.Seek(-(rewindBytes + int64(size)), 1)
-				break
+				fmt.Println("we need to rewind", rewindBytes+int64(size))
+				d.r.Seek(-(rewindBytes + int64(size)), io.SeekCurrent)
 			}
 			return
+		case COMTID:
+			chunk := &Chunk{
+				ID:   id,
+				Size: int(size),
+				R:    io.LimitReader(d.r, int64(size)),
+			}
+			if err := d.parseCommentsChunk(chunk); err != nil {
+				fmt.Println("failed to read comments", err)
+			}
 		default:
 			// we haven't read the COMM chunk yet, we need to track location to rewind
 			if d.SampleRate == 0 {

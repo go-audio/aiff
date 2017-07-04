@@ -6,8 +6,16 @@ var (
 	formID = [4]byte{'F', 'O', 'R', 'M'}
 	aiffID = [4]byte{'A', 'I', 'F', 'F'}
 	aifcID = [4]byte{'A', 'I', 'F', 'C'}
+	// COMMID is the common chunk ID
 	COMMID = [4]byte{'C', 'O', 'M', 'M'}
+	COMTID = [4]byte{'C', 'O', 'M', 'T'}
 	SSNDID = [4]byte{'S', 'S', 'N', 'D'}
+
+	// Apple stuff
+	chanID = [4]byte{'C', 'H', 'A', 'N'}
+	bascID = [4]byte{'b', 'a', 's', 'c'}
+	trnsID = [4]byte{'t', 'r', 'n', 's'}
+	cateID = [4]byte{'c', 'a', 't', 'e'}
 
 	// AIFC encodings
 	encNone = [4]byte{'N', 'O', 'N', 'E'}
@@ -39,4 +47,28 @@ var (
 	ErrFmtNotSupported = errors.New("format not supported")
 	// ErrUnexpectedData is a generic error reporting that the parser encountered unexpected data.
 	ErrUnexpectedData = errors.New("unexpected data content")
+
+	// Debug is a flag that can be turned on to see more logs
+	Debug = false
 )
+
+func round(v float64, decimals int) float64 {
+	var pow float64 = 1
+	for i := 0; i < decimals; i++ {
+		pow *= 10
+	}
+	return float64(int((v*pow)+0.5)) / pow
+}
+
+func nullTermStr(b []byte) string {
+	return string(b[:clen(b)])
+}
+
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
+}
