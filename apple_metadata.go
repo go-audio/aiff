@@ -18,3 +18,49 @@ type AppleMetadata struct {
 	// Tags are tags related to the content of the file
 	Tags []string
 }
+
+// AppleScaleToString converts the scale information into a string representation.
+func AppleScaleToString(scale uint16) string {
+	switch scale {
+	case 1:
+		return "minor"
+	case 2:
+		return "major"
+	case 4:
+		return "minor + major"
+	default:
+		return ""
+	}
+}
+
+// AppleNoteToPitch returns the pitch for the stored note.
+func AppleNoteToPitch(note uint16) string {
+	switch note {
+	case 48:
+		return "C"
+	case 49:
+		return "C#"
+	case 50:
+		return "D"
+	case 51:
+		return "D#"
+	case 52:
+		return "E"
+	case 53:
+		return "F"
+	case 54:
+		return "F#"
+	case 55:
+		return "G"
+	case 56:
+		return "G#"
+	case 57:
+		return "A"
+	case 58:
+		return "A#"
+	case 59:
+		return "B"
+	default:
+		return ""
+	}
+}

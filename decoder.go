@@ -427,6 +427,31 @@ func (d *Decoder) String() string {
 		dur, _ := d.Duration()
 		out += fmt.Sprintf("Duration: %f seconds\n", dur.Seconds())
 	}
+	if len(d.Comments) > 0 {
+		for _, comment := range d.Comments {
+			out += fmt.Sprintln(comment)
+		}
+	}
+	if d.HasAppleInfo {
+		out += fmt.Sprintln("Key note:", AppleNoteToPitch(d.AppleInfo.Note))
+		out += fmt.Sprintln("Scale:", AppleScaleToString(d.AppleInfo.Scale))
+		out += fmt.Sprintf("Tempo: %.2f BPM\n", d.Tempo())
+		out += fmt.Sprintf("Number of beats: %d\n", d.AppleInfo.Beats)
+		out += fmt.Sprintf("Time signature: %d/%d\n", d.AppleInfo.Numerator, d.AppleInfo.Denominator)
+		var format string
+		if d.AppleInfo.IsLooping {
+			format = "loop"
+		} else {
+			format = "one-shot"
+		}
+		out += fmt.Sprintln("Sample format:", format)
+		if len(d.AppleInfo.Tags) > 0 {
+			out += "Tags:\n"
+			for _, tag := range d.AppleInfo.Tags {
+				out += fmt.Sprintln("\t" + tag)
+			}
+		}
+	}
 	return out
 }
 
