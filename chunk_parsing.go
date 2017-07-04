@@ -118,8 +118,12 @@ func (d *Decoder) parseBascChunk(chunk *Chunk) error {
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Numerator)
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Denominator)
 	chunk.ReadByte()
-	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.IsLooping)
-
+	var loopFlag uint16
+	binary.Read(chunk.R, binary.BigEndian, &loopFlag)
+	// 1  = loop; 2 = one shot
+	if loopFlag == 1 {
+		d.AppleInfo.IsLooping = true
+	}
 	chunk.Done()
 	return nil
 }

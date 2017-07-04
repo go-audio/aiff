@@ -174,6 +174,18 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return duration, nil
 }
 
+// Tempo returns a tempo when available, otherwise -1
+func (d *Decoder) Tempo() float64 {
+	if d == nil || !d.HasAppleInfo || d.AppleInfo.Beats < 1 {
+		return -1
+	}
+	duration, err := d.Duration()
+	if err != nil {
+		return -1
+	}
+	return round(float64(d.AppleInfo.Beats)/(duration.Seconds()/60.0), 2)
+}
+
 // Drain parses the remaining chunks
 func (d *Decoder) Drain() error {
 	var chunk *Chunk

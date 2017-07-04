@@ -12,17 +12,19 @@ func TestAppleInfo(t *testing.T) {
 		input   string
 		hasInfo bool
 		info    AppleMetadata
+		tempo   float64
 	}{
-		{"no apple metadata", "fixtures/kick.aif", false, AppleMetadata{}},
+		{"no apple metadata", "fixtures/kick.aif", false, AppleMetadata{}, -1},
 		{"full data", "fixtures/ring.aif", true, AppleMetadata{
 			Beats:       3,
 			Note:        48,
 			Scale:       2,
 			Numerator:   4,
 			Denominator: 4,
-			IsLooping:   true,
+			IsLooping:   false,
 			Tags:        []string{"Sound Effect", "Mech/Tech", "Single"},
-		}},
+		},
+			90.14},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,6 +69,9 @@ func TestAppleInfo(t *testing.T) {
 						t.Fatalf("expected tag %d to be %q but got %q", i, tag, d.AppleInfo.Tags[i])
 					}
 				}
+			}
+			if tt.tempo != d.Tempo() {
+				t.Fatalf("expected a tempo of %v but got %v", tt.tempo, d.Tempo())
 			}
 		})
 	}

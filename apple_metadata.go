@@ -7,7 +7,7 @@ type AppleMetadata struct {
 	Beats uint32
 	// Note is the root key of the sample (48 = C)
 	Note uint16
-	// Scale is the musical scale
+	// Scale is the musical scale; 0 = neither, 1 = minor, 2 = major, 4 = both
 	Scale uint16
 	// Numerator of the time signature
 	Numerator uint16
