@@ -15,4 +15,6 @@ type AppleMetadata struct {
 	Denominator uint16
 	// IsLooping indicates if the sample is a loop or not
 	IsLooping bool
+	// Tags are tags related to the content of the file
+	Tags []string
 }

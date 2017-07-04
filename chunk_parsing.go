@@ -58,6 +58,12 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 		// skip 16
 		// }
 		chunk.Done()
+	// Apple specific categorization
+	case cateID:
+		if err := d.parseCateChunk(chunk); err != nil {
+			fmt.Println("failed to read CATE chunk", err)
+		}
+		chunk.Done()
 	default:
 		if Debug {
 			fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
@@ -113,6 +119,42 @@ func (d *Decoder) parseBascChunk(chunk *Chunk) error {
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.Denominator)
 	chunk.ReadByte()
 	binary.Read(chunk.R, binary.BigEndian, &d.AppleInfo.IsLooping)
+
+	chunk.Done()
+	return nil
+}
+
+func (d *Decoder) parseCateChunk(chunk *Chunk) error {
+	if chunk.ID != cateID {
+		return fmt.Errorf("unexpected CATE chunk ID: %q", chunk.ID)
+	}
+	d.HasAppleInfo = true
+
+	// skip 4
+	tmp := make([]byte, 4)
+	chunk.R.Read(tmp)
+
+	tmp = make([]byte, 50)
+	for i := 0; i < 3; i++ {
+		chunk.R.Read(tmp)
+		if tmp[0] > 0 {
+			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
+		}
+	}
+
+	// skip 64
+	tmp = make([]byte, 64)
+	chunk.R.Read(tmp)
+
+	var numCategories uint32
+	binary.Read(chunk.R, binary.BigEndian, &numCategories)
+	tmp = tmp[:50]
+	for i := 0; i < int(numCategories); i++ {
+		chunk.R.Read(tmp)
+		if tmp[0] > 0 {
+			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
+		}
+	}
 
 	chunk.Done()
 	return nil

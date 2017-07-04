@@ -11,9 +11,11 @@ var (
 	COMTID = [4]byte{'C', 'O', 'M', 'T'}
 	SSNDID = [4]byte{'S', 'S', 'N', 'D'}
 
+	// Apple stuff
 	chanID = [4]byte{'C', 'H', 'A', 'N'}
 	bascID = [4]byte{'b', 'a', 's', 'c'}
 	trnsID = [4]byte{'t', 'r', 'n', 's'}
+	cateID = [4]byte{'c', 'a', 't', 'e'}
 
 	// AIFC encodings
 	encNone = [4]byte{'N', 'O', 'N', 'E'}
@@ -49,3 +51,16 @@ var (
 	// Debug is a flag that can be turned on to see more logs
 	Debug = false
 )
+
+func nullTermStr(b []byte) string {
+	return string(b[:clen(b)])
+}
+
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
+}

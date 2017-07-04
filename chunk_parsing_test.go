@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDecoder_parseBascChunk(t *testing.T) {
+func TestAppleInfo(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -14,7 +14,15 @@ func TestDecoder_parseBascChunk(t *testing.T) {
 		info    AppleMetadata
 	}{
 		{"no apple metadata", "fixtures/kick.aif", false, AppleMetadata{}},
-		{"full data", "fixtures/ring.aif", true, AppleMetadata{Beats: 3, Note: 48, Scale: 2, Numerator: 4, Denominator: 4, IsLooping: true}},
+		{"full data", "fixtures/ring.aif", true, AppleMetadata{
+			Beats:       3,
+			Note:        48,
+			Scale:       2,
+			Numerator:   4,
+			Denominator: 4,
+			IsLooping:   true,
+			Tags:        []string{"Sound Effect", "Mech/Tech", "Single"},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,7 +57,15 @@ func TestDecoder_parseBascChunk(t *testing.T) {
 					t.Fatalf("expected to have its denominator set to %d but got %d", tt.info.Denominator, d.AppleInfo.Denominator)
 				}
 				if tt.info.IsLooping != d.AppleInfo.IsLooping {
-					t.Fatalf("expected to have its looping set to %T but got %T", tt.info.IsLooping, d.AppleInfo.IsLooping)
+					t.Fatalf("expected to have its looping set to %t but got %t", tt.info.IsLooping, d.AppleInfo.IsLooping)
+				}
+				if len(tt.info.Tags) != len(d.AppleInfo.Tags) {
+					t.Fatalf("expected %d tags but got %d", len(tt.info.Tags), len(d.AppleInfo.Tags))
+				}
+				for i, tag := range tt.info.Tags {
+					if tag != d.AppleInfo.Tags[i] {
+						t.Fatalf("expected tag %d to be %q but got %q", i, tag, d.AppleInfo.Tags[i])
+					}
 				}
 			}
 		})
