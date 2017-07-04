@@ -48,15 +48,23 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 		chunk.Done()
 	// Apple specific transient data
 	case trnsID:
-		// TODO extract ans store the transients
-		// skip 72
-		// nTransients uint32
-		// transients := make([]uint32, nTransients)
-		// for i := 0; i < nTransients; i ++ {
-		// skip 4
-		// binary.Read &transients[i]
-		// skip 16
-		// }
+		// TODO extract and store the transients
+		/*
+			var v1 uint16
+			var sensitivity uint16 // 0 to 100 %
+			var transientDivisions uint16 // 1 = whole note
+			var v3 uint16
+			var v5 uint16
+			var v4 uint16
+			var nbSlice uint16
+			int loopSize = v4 * d.AppleInfo.Beats * 2
+			for s := 0; s < nbSlice; s++{
+				slicepos := 24 * s + 0x4c;
+				var sv1 uint16
+				var sv2 uint16
+				var sampleBegin uint32
+			}
+		*/
 		chunk.Done()
 	// Apple specific categorization
 	case cateID:
@@ -139,21 +147,22 @@ func (d *Decoder) parseCateChunk(chunk *Chunk) error {
 	chunk.R.Read(tmp)
 
 	tmp = make([]byte, 50)
-	for i := 0; i < 3; i++ {
+	// 4 main categories: instrument, instrument category, style, substyle
+	for i := 0; i < 4; i++ {
 		chunk.R.Read(tmp)
 		if tmp[0] > 0 {
 			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
 		}
 	}
 
-	// skip 64
-	tmp = make([]byte, 64)
+	// skip 14
+	tmp = make([]byte, 14)
 	chunk.R.Read(tmp)
 
-	var numCategories uint32
-	binary.Read(chunk.R, binary.BigEndian, &numCategories)
-	tmp = tmp[:50]
-	for i := 0; i < int(numCategories); i++ {
+	var numDescriptors uint32
+	binary.Read(chunk.R, binary.BigEndian, &numDescriptors)
+	tmp = make([]byte, 50)
+	for i := 0; i < int(numDescriptors); i++ {
 		chunk.R.Read(tmp)
 		if tmp[0] > 0 {
 			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
