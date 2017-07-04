@@ -140,30 +140,39 @@ func (d *Decoder) parseCateChunk(chunk *Chunk) error {
 	if chunk.ID != cateID {
 		return fmt.Errorf("unexpected CATE chunk ID: %q", chunk.ID)
 	}
+	var err error
 	d.HasAppleInfo = true
 
 	// skip 4
 	tmp := make([]byte, 4)
-	chunk.R.Read(tmp)
+	if _, err = chunk.R.Read(tmp); err != nil {
+		return err
+	}
 
 	tmp = make([]byte, 50)
 	// 4 main categories: instrument, instrument category, style, substyle
 	for i := 0; i < 4; i++ {
-		chunk.R.Read(tmp)
+		if _, err = chunk.R.Read(tmp); err != nil {
+			return err
+		}
 		if tmp[0] > 0 {
 			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
 		}
 	}
 
-	// skip 14
-	tmp = make([]byte, 14)
-	chunk.R.Read(tmp)
+	// skip 16
+	tmp = make([]byte, 16)
+	if _, err = chunk.R.Read(tmp); err != nil {
+		return err
+	}
 
-	var numDescriptors uint32
+	var numDescriptors int16
 	binary.Read(chunk.R, binary.BigEndian, &numDescriptors)
 	tmp = make([]byte, 50)
 	for i := 0; i < int(numDescriptors); i++ {
-		chunk.R.Read(tmp)
+		if _, err = chunk.R.Read(tmp); err != nil {
+			return err
+		}
 		if tmp[0] > 0 {
 			d.AppleInfo.Tags = append(d.AppleInfo.Tags, nullTermStr(tmp))
 		}

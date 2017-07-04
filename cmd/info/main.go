@@ -26,6 +26,10 @@ func main() {
 	defer f.Close()
 
 	d := aiff.NewDecoder(f)
+	if !d.IsValidFile() {
+		fmt.Println("invalid AIFF file")
+		os.Exit(1)
+	}
 	d.Drain()
 	fmt.Println(d)
 }

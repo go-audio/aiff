@@ -529,10 +529,19 @@ func (d *Decoder) ReadInfo() {
 			// we need to rewind the reader so we can properly
 			// read the rest later.
 			if rewindBytes > 0 {
-				d.r.Seek(-(rewindBytes + int64(size)), 1)
-				break
+				fmt.Println("we need to rewind", rewindBytes+int64(size))
+				d.r.Seek(-(rewindBytes + int64(size)), io.SeekCurrent)
 			}
 			return
+		case COMTID:
+			chunk := &Chunk{
+				ID:   id,
+				Size: int(size),
+				R:    io.LimitReader(d.r, int64(size)),
+			}
+			if err := d.parseCommentsChunk(chunk); err != nil {
+				fmt.Println("failed to read comments", err)
+			}
 		default:
 			// we haven't read the COMM chunk yet, we need to track location to rewind
 			if d.SampleRate == 0 {

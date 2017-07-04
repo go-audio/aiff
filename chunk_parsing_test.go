@@ -25,6 +25,16 @@ func TestAppleInfo(t *testing.T) {
 			Tags:        []string{"Sound Effect", "Mech/Tech", "Single"},
 		},
 			90.14},
+		{"descriptor", "fixtures/98_G.aif", true, AppleMetadata{
+			Beats:       44,
+			Note:        48,
+			Scale:       2,
+			Numerator:   4,
+			Denominator: 4,
+			IsLooping:   false,
+			Tags:        []string{"Other Instrument", "Single"},
+		},
+			97.92},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
