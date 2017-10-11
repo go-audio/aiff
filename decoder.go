@@ -130,6 +130,10 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	)
 
 	id, size, d.err = d.iDnSize()
+	if size%2 != 0 {
+		// realign, the encoder lied about the size of the chunk header :(
+		size++
+	}
 	if d.err != nil {
 		if d.err == io.EOF || d.err == io.ErrUnexpectedEOF {
 			return nil, io.EOF

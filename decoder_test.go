@@ -52,8 +52,10 @@ func TestContainerAttributes(t *testing.T) {
 			18, 2, 88064, 16, 44100, 88064, [4]byte{}, "", []string{"Creator: Logic"}},
 		{"fixtures/sowt.aif", formID, 17276, aifcID,
 			24, 2, 4064, 16, 44100, 4064, encSowt, "", nil},
-		{"fixtures/ableton.aif", formID, 203316, aifcID,
-			38, 2, 33815, 24, 48000, 33815, encAble, "Ableton Content", nil},
+		// misaligned chunk sizes
+		{"fixtures/sowt2.aif", formID, 683420, aifcID,
+			24, 2, 166677, 16, 44100, 166677, encSowt, "", []string{"c) 2009 mutekki-media.de"}},
+		{"fixtures/ableton.aif", formID, 203316, aifcID, 38, 2, 33815, 24, 48000, 33815, encAble, "Ableton Content", nil},
 	}
 
 	for _, exp := range expectations {
