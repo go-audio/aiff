@@ -537,8 +537,9 @@ func (d *Decoder) ReadInfo() {
 			// we need to rewind the reader so we can properly
 			// read the rest later.
 			if rewindBytes > 0 {
-				// we need to rewind rewindBytes+int64(size) bytes
-				d.r.Seek(-(rewindBytes + int64(size)), io.SeekCurrent)
+				// we need to rewind rewindBytes+size of chunk ID and size
+				d.r.Seek(-(rewindBytes + int64(size) + 8), io.SeekCurrent)
+				rewindBytes = 0
 			}
 			return
 		case COMTID:
@@ -553,7 +554,7 @@ func (d *Decoder) ReadInfo() {
 		default:
 			// we haven't read the COMM chunk yet, we need to track location to rewind
 			if d.SampleRate == 0 {
-				rewindBytes += int64(size)
+				rewindBytes += int64(size) + 8 // we add 8 for the ID and size of this chunk
 			}
 			if d.err = d.jumpTo(int(size)); d.err != nil {
 				return
@@ -588,6 +589,8 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 	}
 	d.SampleRate = audio.IEEEFloatToInt(srBytes)
 
+	read := 18
+
 	if d.Form == aifcID {
 		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
@@ -602,12 +605,19 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
-		desc := make([]byte, encNameSize+1) // + 1 because of the null termination
-		if d.err = binary.Read(d.r, binary.BigEndian, &desc); d.err != nil {
-			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
-			return d.err
+		read += 5
+		if encNameSize > 0 {
+			desc := make([]byte, encNameSize)
+			if d.err = binary.Read(d.r, binary.BigEndian, &desc); d.err != nil {
+				d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
+				return d.err
+			}
+			d.EncodingName = string(desc[:encNameSize])
+			read += int(encNameSize)
 		}
-		d.EncodingName = string(desc[encNameSize])
+	}
+	if read < int(size) {
+		io.CopyN(ioutil.Discard, d.r, int64(int(size)-read))
 	}
 
 	return nil

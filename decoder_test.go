@@ -42,14 +42,18 @@ func TestContainerAttributes(t *testing.T) {
 		sampleSize      uint16
 		sampleRate      int
 		totalFrames     int64
+		encoding        [4]byte
+		encodingName    string
 		comments        []string
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
-			18, 1, 4484, 16, 22050, 4484, nil},
+			18, 1, 4484, 16, 22050, 4484, [4]byte{}, "", nil},
 		{"fixtures/ring.aif", formID, 354310, aiffID,
-			18, 2, 88064, 16, 44100, 88064, []string{"Creator: Logic"}},
+			18, 2, 88064, 16, 44100, 88064, [4]byte{}, "", []string{"Creator: Logic"}},
 		{"fixtures/sowt.aif", formID, 17276, aifcID,
-			24, 2, 4064, 16, 44100, 4064, nil},
+			24, 2, 4064, 16, 44100, 4064, encSowt, "", nil},
+		{"fixtures/ableton.aif", formID, 203316, aifcID,
+			38, 2, 33815, 24, 48000, 33815, encAble, "Ableton Content", nil},
 	}
 
 	for _, exp := range expectations {
@@ -109,6 +113,12 @@ func TestContainerAttributes(t *testing.T) {
 		}
 		if d.SampleRate != exp.sampleRate {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
+		}
+		if d.Encoding != exp.encoding {
+			t.Fatalf("%s of %s didn't match %q, got %q", "Encoding", exp.input, exp.encoding, d.Encoding)
+		}
+		if d.EncodingName != exp.encodingName {
+			t.Fatalf("%s of %s didn't match %s, got %s", "EncodingName", exp.input, exp.encodingName, d.EncodingName)
 		}
 		if len(d.Comments) != len(exp.comments) {
 			t.Fatalf("%s of %s didn't match %d, got %d", "number of comments", exp.input, len(exp.comments), len(d.Comments))

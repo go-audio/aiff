@@ -43,6 +43,9 @@ var (
 	encGsm  = [4]byte{'G', 'S', 'M', ' '}
 	encIma4 = [4]byte{'i', 'm', 'a', '4'}
 
+	// encAble
+	encAble = [4]byte{'a', 'b', 'l', 'e'}
+
 	// ErrFmtNotSupported is a generic error reporting an unknown format.
 	ErrFmtNotSupported = errors.New("format not supported")
 	// ErrUnexpectedData is a generic error reporting that the parser encountered unexpected data.

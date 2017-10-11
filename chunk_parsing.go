@@ -18,6 +18,10 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 	switch chunk.ID {
 	// common chunk parsing
 	case COMMID:
+		if d.commSize > 0 {
+			// we already parsed this chunk
+			chunk.Done()
+		}
 		if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
 			return err
 		}
