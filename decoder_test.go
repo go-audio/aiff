@@ -260,6 +260,7 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		{"fixtures/zipper24b.aiff", true},
 		{"fixtures/sample.avi", false},
 		{"fixtures/kick.wav", false},
+		{"fixtures/ableton.aif", false},
 	}
 
 	for i, tc := range testCases {

@@ -18,7 +18,8 @@ var (
 	cateID = [4]byte{'c', 'a', 't', 'e'}
 
 	// AIFC encodings
-	encNone = [4]byte{'N', 'O', 'N', 'E'}
+	encNotSet = [4]byte{}
+	encNone   = [4]byte{'N', 'O', 'N', 'E'}
 	// inverted byte order LE instead of BE (not really compression)
 	encSowt = [4]byte{'s', 'o', 'w', 't'}
 	// inverted byte order LE instead of BE (not really compression)

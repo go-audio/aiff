@@ -164,6 +164,11 @@ func (d *Decoder) IsValidFile() bool {
 	if d, err := d.Duration(); err != nil || d <= 0 {
 		return false
 	}
+	switch d.Encoding {
+	case encSowt, encNone, encNotSet:
+	default:
+		return false
+	}
 
 	return true
 }
