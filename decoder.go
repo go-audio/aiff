@@ -52,6 +52,8 @@ type Decoder struct {
 	err             error
 	pcmDataAccessed bool
 
+	byteOrder binary.ByteOrder
+
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
 	rewindBytes int64
@@ -60,7 +62,7 @@ type Decoder struct {
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
 // It is the caller's responsibility to call Close on the reader when done.
 func NewDecoder(r io.ReadSeeker) *Decoder {
-	return &Decoder{r: r}
+	return &Decoder{r: r, byteOrder: binary.BigEndian}
 }
 
 // SampleBitDepth returns the bit depth encoding of each sample.
@@ -116,8 +118,9 @@ func (d *Decoder) Format() *audio.Format {
 
 // NextChunk returns the next available chunk
 func (d *Decoder) NextChunk() (*Chunk, error) {
-	if d.err = d.readHeaders(); d.err != nil {
-		d.err = fmt.Errorf("failed to read header - %v", d.err)
+	// we need to read the info so we have access to the encoding.
+	if d.ReadInfo(); d.err != nil {
+		d.err = fmt.Errorf("failed to read info - %v", d.err)
 		return nil, d.err
 	}
 
@@ -128,11 +131,10 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 
 	id, size, d.err = d.iDnSize()
 	if d.err != nil {
-		if d.err == io.EOF {
-			return nil, d.err
+		if d.err == io.EOF || d.err == io.ErrUnexpectedEOF {
+			return nil, io.EOF
 		}
-		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
-		return nil, d.err
+		return nil, fmt.Errorf("error reading chunk header - %v", d.err)
 	}
 
 	c := &Chunk{
@@ -220,6 +222,7 @@ func (d *Decoder) FwdToPCM() error {
 	for d.err == nil {
 		chunk, d.err = d.NextChunk()
 		if d.err != nil {
+			d.err = fmt.Errorf("failed to read next chunk: %v", d.err)
 			return d.err
 		}
 
@@ -247,16 +250,20 @@ func (d *Decoder) FwdToPCM() error {
 				// skip pcm comment
 				buf := make([]byte, offset)
 				if err := chunk.ReadBE(&buf); err != nil {
-					return err
+					d.err = fmt.Errorf("failed to read the offsetted buffer - %v", err)
+					return d.err
 				}
 			}
 			d.PCMChunk = chunk
 			d.pcmDataAccessed = true
+			if d.err != nil {
+				d.err = fmt.Errorf("failed to read the SSND chunk - %v", d.err)
+			}
 			return d.err
 		}
 
 		if err := d.parseChunk(chunk); err != nil {
-			return err
+			return fmt.Errorf("failed to parse the chunk - %v", err)
 		}
 	}
 	return d.err
@@ -286,7 +293,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 	if !d.WasPCMAccessed() {
 		err := d.FwdToPCM()
 		if err != nil {
-			return nil, d.err
+			return nil, fmt.Errorf("failed to forward to PCM: %v", err)
 		}
 	}
 	format := &audio.Format{
@@ -299,7 +306,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		Format:         format,
 		SourceBitDepth: int(d.BitDepth),
 	}
-	decodeF, err := sampleDecodeFunc(buf.SourceBitDepth)
+	decodeF, err := sampleDecodeFunc(buf.SourceBitDepth, d.byteOrder)
 	if err != nil {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
@@ -314,7 +321,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		// we are loading part of the chunk in memory and reading from there
 		sizeToRead = chunkSize
 		if adjust := sizeToRead % bytesPerSample(buf.SourceBitDepth); adjust != 0 {
-			fmt.Println("should be 0:", adjust, sizeToRead, buf.SourceBitDepth)
+			fmt.Fprintf(os.Stderr, "should be 0: %d %d %d\n", adjust, sizeToRead, buf.SourceBitDepth)
 		}
 
 		if leftOverSize := d.PCMChunk.Size - d.PCMChunk.Pos; leftOverSize < chunkSize {
@@ -326,7 +333,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		optBuf := make([]byte, sizeToRead)
 		n, err = d.PCMChunk.Read(optBuf)
 		if err != nil {
-			fmt.Println("-->", sizeToRead, err)
+			// fmt.Println("-->", sizeToRead, err)
 			break
 		}
 		if n != sizeToRead {
@@ -379,7 +386,7 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 	}
 
 	buf.SourceBitDepth = int(d.BitDepth)
-	decodeF, err := sampleDecodeFunc(buf.SourceBitDepth)
+	decodeF, err := sampleDecodeFunc(buf.SourceBitDepth, d.byteOrder)
 	if err != nil {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
@@ -421,7 +428,7 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 func (d *Decoder) String() string {
 	out := fmt.Sprintf("Format: %s - ", d.Form)
 	if d.Form == aifcID {
-		out += fmt.Sprintf("%s - ", d.EncodingName)
+		out += fmt.Sprintf("%s - ", string(d.Encoding[:]))
 	}
 	if d.SampleRate != 0 {
 		out += fmt.Sprintf("%d channels @ %d / %d bits - ", d.NumChans, d.SampleRate, d.BitDepth)
@@ -481,7 +488,7 @@ func (d *Decoder) readHeaders() error {
 	}
 	// Must start by a FORM header/ID
 	if d.ID != formID {
-		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.ID)
+		d.err = fmt.Errorf("%s - %#v", ErrFmtNotSupported, d.ID)
 		return d.err
 	}
 
@@ -494,11 +501,11 @@ func (d *Decoder) readHeaders() error {
 
 	// Must be a AIFF or AIFC form type
 	if d.Form != aiffID && d.Form != aifcID {
-		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.Form)
+		d.err = fmt.Errorf("%s - %#v", ErrFmtNotSupported, d.Form)
 		return d.err
 	}
 
-	return nil
+	return d.err
 }
 
 // ReadInfo reads the underlying reader until the comm header is parsed.
@@ -586,19 +593,21 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
+		if d.Encoding == encSowt {
+			d.byteOrder = binary.LittleEndian
+		}
 		// pascal style string with the description of the encoding
-		var size uint8
-		if d.err = binary.Read(d.r, binary.BigEndian, &size); d.err != nil {
+		var encNameSize uint8
+		if d.err = binary.Read(d.r, binary.BigEndian, &encNameSize); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
-
-		desc := make([]byte, size)
+		desc := make([]byte, encNameSize+1) // + 1 because of the null termination
 		if d.err = binary.Read(d.r, binary.BigEndian, &desc); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
-		d.EncodingName = string(desc)
+		d.EncodingName = string(desc[encNameSize])
 	}
 
 	return nil
@@ -617,19 +626,19 @@ func bytesPerSample(bitDepth int) int {
 	return bitDepth / 8
 }
 
-func sampleDecodeFunc(bitDepth int) (func(io.Reader) (int, error), error) {
+func sampleDecodeFunc(bitDepth int, byteOrder binary.ByteOrder) (func(io.Reader) (int, error), error) {
 	switch bitDepth {
 	case 8:
 		// 8bit values are unsigned
 		return func(r io.Reader) (int, error) {
 			var v uint8
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return int(v), err
 		}, nil
 	case 16:
 		return func(r io.Reader) (int, error) {
 			var v int16
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return int(v), err
 		}, nil
 	case 24:
@@ -644,7 +653,7 @@ func sampleDecodeFunc(bitDepth int) (func(io.Reader) (int, error), error) {
 	case 32:
 		return func(r io.Reader) (int, error) {
 			var v int32
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return int(v), err
 		}, nil
 	default:
@@ -652,19 +661,19 @@ func sampleDecodeFunc(bitDepth int) (func(io.Reader) (int, error), error) {
 	}
 }
 
-func sampleFloat64DecodeFunc(bitDepth int) (func(io.Reader) (float64, error), error) {
+func sampleFloat64DecodeFunc(bitDepth int, byteOrder binary.ByteOrder) (func(io.Reader) (float64, error), error) {
 	switch bitDepth {
 	case 8:
 		// 8bit values are unsigned
 		return func(r io.Reader) (float64, error) {
 			var v uint8
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return float64(v), err
 		}, nil
 	case 16:
 		return func(r io.Reader) (float64, error) {
 			var v int16
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return float64(v), err
 		}, nil
 	case 24:
@@ -685,7 +694,7 @@ func sampleFloat64DecodeFunc(bitDepth int) (func(io.Reader) (float64, error), er
 	case 32:
 		return func(r io.Reader) (float64, error) {
 			var v float32
-			err := binary.Read(r, binary.BigEndian, &v)
+			err := binary.Read(r, byteOrder, &v)
 			return float64(v), err
 		}, nil
 	default:

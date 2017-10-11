@@ -48,8 +48,7 @@ func (ch *Chunk) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-// ReadLE reads the Little Endian chunk data into the passed struct
-func (ch *Chunk) ReadLE(dst interface{}) error {
+func (ch *Chunk) readWithByteOrder(dst interface{}, byteOrder binary.ByteOrder) error {
 	if ch == nil || ch.R == nil {
 		return errors.New("nil chunk/reader pointer")
 	}
@@ -57,16 +56,17 @@ func (ch *Chunk) ReadLE(dst interface{}) error {
 		return io.EOF
 	}
 	ch.Pos += binary.Size(dst)
-	return binary.Read(ch.R, binary.LittleEndian, dst)
+	return binary.Read(ch.R, byteOrder, dst)
+}
+
+// ReadLE reads the Little Endian chunk data into the passed struct
+func (ch *Chunk) ReadLE(dst interface{}) error {
+	return ch.readWithByteOrder(dst, binary.LittleEndian)
 }
 
 // ReadBE reads the Big Endian chunk data into the passed struct
 func (ch *Chunk) ReadBE(dst interface{}) error {
-	if ch.IsFullyRead() {
-		return io.EOF
-	}
-	ch.Pos += binary.Size(dst)
-	return binary.Read(ch.R, binary.BigEndian, dst)
+	return ch.readWithByteOrder(dst, binary.BigEndian)
 }
 
 // ReadByte reads and returns a single byte

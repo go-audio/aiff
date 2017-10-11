@@ -74,7 +74,7 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 		chunk.Done()
 	default:
 		if Debug {
-			fmt.Printf("skipping unknown chunk %q\n", string(chunk.ID[:]))
+			fmt.Printf("skipping unknown chunk %#v\n", chunk.ID[:])
 		}
 		// if we read SSN but didn't read the COMM, we need to track location
 		if d.SampleRate == 0 {

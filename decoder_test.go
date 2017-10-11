@@ -2,6 +2,7 @@ package aiff
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,7 +27,7 @@ func init() {
 		}
 		defer pprof.StopCPUProfile()
 	}
-	Debug = true
+	// Debug = true
 }
 
 func TestContainerAttributes(t *testing.T) {
@@ -47,6 +48,8 @@ func TestContainerAttributes(t *testing.T) {
 			18, 1, 4484, 16, 22050, 4484, nil},
 		{"fixtures/ring.aif", formID, 354310, aiffID,
 			18, 2, 88064, 16, 44100, 88064, []string{"Creator: Logic"}},
+		{"fixtures/sowt.aif", formID, 17276, aifcID,
+			24, 2, 4064, 16, 44100, 4064, nil},
 	}
 
 	for _, exp := range expectations {
@@ -60,7 +63,7 @@ func TestContainerAttributes(t *testing.T) {
 		d := NewDecoder(f)
 		buf, err := d.FullPCMBuffer()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal(fmt.Errorf("failed to read the full PCM buffer - %s", err))
 		}
 		if err := d.Drain(); err != nil {
 			t.Fatalf("draining %s failed - %s\n", path, err)
