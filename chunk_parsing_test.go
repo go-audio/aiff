@@ -50,7 +50,7 @@ func TestAppleInfo(t *testing.T) {
 				t.Fatalf("draining %s failed - %s\n", path, err)
 			}
 			if tt.hasInfo != d.HasAppleInfo {
-				t.Fatalf("%s was expected to have Apple info set to %T but was %T", path, tt.hasInfo, d.HasAppleInfo)
+				t.Fatalf("%s was expected to have Apple info set to %v but was %v", path, tt.hasInfo, d.HasAppleInfo)
 			}
 			if d.HasAppleInfo {
 				if tt.info.Beats != d.AppleInfo.Beats {

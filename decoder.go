@@ -144,8 +144,21 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	c := &Chunk{
 		ID:   id,
 		Size: int(size),
-		R:    io.LimitReader(d.r, int64(size)),
 	}
+	// performance optimization to avoid small IO reads if the chunk is smaller
+	// than 1MB
+	if size < 1000000 {
+		var n int64
+		buf := bytes.NewBuffer(make([]byte, 0, size))
+		n, d.err = io.CopyN(buf, d.r, int64(size))
+		if n < int64(size) {
+			buf.Truncate(int(n))
+		}
+		c.R = buf
+	} else {
+		c.R = io.LimitReader(d.r, int64(size))
+	}
+
 	return c, d.err
 }
 
