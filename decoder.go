@@ -321,6 +321,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	sampleBuf := make([]byte, 4, 4)
 	n := 0
 	i := 0
 	chunkSize = 2048 * bytesPerSample(buf.SourceBitDepth)
@@ -352,7 +353,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
 
 		bufReader := bytes.NewReader(optBuf)
 		for innerErr == nil {
-			buf.Data[i], innerErr = decodeF(bufReader)
+			buf.Data[i], innerErr = decodeF(bufReader, sampleBuf)
 			if innerErr != nil {
 				if innerErr == io.EOF {
 					innerErr = nil
@@ -417,11 +418,12 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 		return m, nil
 	}
 	bufR := bytes.NewReader(tmpBuf[:m])
+	sampleBuf := make([]byte, 4, 4)
 
 	// Note that we populate the buffer even if the
 	// size of the buffer doesn't fit an even number of frames.
 	for n = 0; n < len(buf.Data); n++ {
-		buf.Data[n], err = decodeF(bufR)
+		buf.Data[n], err = decodeF(bufR, sampleBuf)
 		if err != nil {
 			break
 		}
@@ -663,35 +665,31 @@ func bytesPerSample(bitDepth int) int {
 	return bitDepth / 8
 }
 
-func sampleDecodeFunc(bitDepth int, byteOrder binary.ByteOrder) (func(io.Reader) (int, error), error) {
+func sampleDecodeFunc(bitDepth int, byteOrder binary.ByteOrder) (func(io.Reader, []byte) (int, error), error) {
 	switch bitDepth {
 	case 8:
 		// 8bit values are unsigned
-		return func(r io.Reader) (int, error) {
-			var v uint8
-			err := binary.Read(r, byteOrder, &v)
-			return int(v), err
+		return func(r io.Reader, buf []byte) (int, error) {
+			_, err := r.Read(buf[:1])
+			return int(buf[0]), err
 		}, nil
 	case 16:
-		return func(r io.Reader) (int, error) {
-			var v int16
-			err := binary.Read(r, byteOrder, &v)
-			return int(v), err
+		return func(r io.Reader, buf []byte) (int, error) {
+			_, err := r.Read(buf[:2])
+			return int(int16(byteOrder.Uint16(buf[:2]))), err
 		}, nil
 	case 24:
-		return func(r io.Reader) (int, error) {
-			sample := make([]byte, 3)
-			_, err := r.Read(sample)
+		return func(r io.Reader, buf []byte) (int, error) {
+			_, err := r.Read(buf[:3])
 			if err != nil {
 				return 0, err
 			}
-			return int(audio.Int24BETo32(sample)), nil
+			return int(audio.Int24BETo32(buf[:3])), nil
 		}, nil
 	case 32:
-		return func(r io.Reader) (int, error) {
-			var v int32
-			err := binary.Read(r, byteOrder, &v)
-			return int(v), err
+		return func(r io.Reader, buf []byte) (int, error) {
+			_, err := r.Read(buf[:4])
+			return int(int32(byteOrder.Uint32(buf[:4]))), err
 		}, nil
 	default:
 		return nil, fmt.Errorf("%v bit depth not supported", bitDepth)
