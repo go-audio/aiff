@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 )
 
 // parseChunk processes a chunk and stores the valuable information
@@ -19,7 +20,6 @@ func (d *Decoder) parseChunk(chunk *Chunk) error {
 	// common chunk parsing
 	case COMMID:
 		if d.commSize > 0 {
-			// we already parsed this chunk
 			chunk.Done()
 		}
 		if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
@@ -95,23 +95,28 @@ func (d *Decoder) parseCommentsChunk(chunk *Chunk) error {
 	if chunk.ID != COMTID {
 		return fmt.Errorf("unexpected comments chunk ID: %q", chunk.ID)
 	}
-	commentsBody := make([]byte, chunk.Size)
-	_, err := chunk.Read(commentsBody)
-	if err != nil {
-		return err
+
+	br := bytes.NewBuffer(make([]byte, 0, chunk.Size))
+	var n int64
+	n, d.err = io.CopyN(br, d.r, int64(chunk.Size))
+	if d.err != nil {
+		return d.err
 	}
-	br := bytes.NewReader(commentsBody)
+	if n < int64(chunk.Size) {
+		br.Truncate(int(n))
+	}
+
 	var nbrComments uint16
 	binary.Read(br, binary.BigEndian, &nbrComments)
 	for i := 0; i < int(nbrComments); i++ {
 		// TODO extract marker id and timestamp
-		br.Seek(8, io.SeekCurrent)
+		io.CopyN(ioutil.Discard, br, 8) // equivalent of br.Seek(8, io.SeekCurrent) but bytes buffer doesn't implement seek
 		b, _ := br.ReadByte()
 		textB := make([]byte, int(b))
 		br.Read(textB)
 		d.Comments = append(d.Comments, string(bytes.TrimRight(textB, "\x00")))
 	}
-	chunk.Done()
+
 	return nil
 }
 

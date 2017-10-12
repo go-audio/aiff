@@ -144,19 +144,7 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	c := &Chunk{
 		ID:   id,
 		Size: int(size),
-	}
-	// performance optimization to avoid small IO reads if the chunk is smaller
-	// than 1MB
-	if size < 1000000 {
-		var n int64
-		buf := bytes.NewBuffer(make([]byte, 0, size))
-		n, d.err = io.CopyN(buf, d.r, int64(size))
-		if n < int64(size) {
-			buf.Truncate(int(n))
-		}
-		c.R = buf
-	} else {
-		c.R = io.LimitReader(d.r, int64(size))
+		R:    io.LimitReader(d.r, int64(size)),
 	}
 
 	return c, d.err
@@ -505,7 +493,15 @@ func (d *Decoder) readHeaders() error {
 	if d.Size > 0 {
 		return nil
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.ID); d.err != nil {
+	var n int64
+	size := 12 // 4 + 4 + 4
+	src := bytes.NewBuffer(make([]byte, 0, size))
+	n, d.err = io.CopyN(src, d.r, int64(size))
+	if n < int64(size) {
+		src.Truncate(int(n))
+	}
+
+	if d.err = binary.Read(src, binary.BigEndian, &d.ID); d.err != nil {
 		return d.err
 	}
 	// Must start by a FORM header/ID
@@ -514,10 +510,10 @@ func (d *Decoder) readHeaders() error {
 		return d.err
 	}
 
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.Size); d.err != nil {
+	if d.err = binary.Read(src, binary.BigEndian, &d.Size); d.err != nil {
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.Form); d.err != nil {
+	if d.err = binary.Read(src, binary.BigEndian, &d.Form); d.err != nil {
 		return d.err
 	}
 
@@ -586,26 +582,33 @@ func (d *Decoder) ReadInfo() {
 }
 
 func (d *Decoder) parseCommChunk(size uint32) error {
-	d.commSize = size
 	// don't re-parse the comm chunk
 	if d.NumChans > 0 {
 		return nil
 	}
+	d.commSize = size
 
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.NumChans); d.err != nil {
+	var n int64
+	src := bytes.NewBuffer(make([]byte, 0, size))
+	n, d.err = io.CopyN(src, d.r, int64(size))
+	if n < int64(size) {
+		src.Truncate(int(n))
+	}
+
+	if d.err = binary.Read(src, binary.BigEndian, &d.NumChans); d.err != nil {
 		d.err = fmt.Errorf("num of channels failed to parse - %s", d.err)
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.NumSampleFrames); d.err != nil {
+	if d.err = binary.Read(src, binary.BigEndian, &d.NumSampleFrames); d.err != nil {
 		d.err = fmt.Errorf("num of sample frames failed to parse - %s", d.err)
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.BitDepth); d.err != nil {
+	if d.err = binary.Read(src, binary.BigEndian, &d.BitDepth); d.err != nil {
 		d.err = fmt.Errorf("sample size failed to parse - %s", d.err)
 		return d.err
 	}
 	var srBytes [10]byte
-	if d.err = binary.Read(d.r, binary.BigEndian, &srBytes); d.err != nil {
+	if d.err = binary.Read(src, binary.BigEndian, &srBytes); d.err != nil {
 		d.err = fmt.Errorf("sample rate failed to parse - %s", d.err)
 		return d.err
 	}
@@ -614,7 +617,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 	read := 18
 
 	if d.Form == aifcID {
-		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
+		if d.err = binary.Read(src, binary.BigEndian, &d.Encoding); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
@@ -623,14 +626,14 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		}
 		// pascal style string with the description of the encoding
 		var encNameSize uint8
-		if d.err = binary.Read(d.r, binary.BigEndian, &encNameSize); d.err != nil {
+		if d.err = binary.Read(src, binary.BigEndian, &encNameSize); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
 		}
 		read += 5
 		if encNameSize > 0 {
 			desc := make([]byte, encNameSize)
-			if d.err = binary.Read(d.r, binary.BigEndian, &desc); d.err != nil {
+			if d.err = binary.Read(src, binary.BigEndian, &desc); d.err != nil {
 				d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 				return d.err
 			}
@@ -639,17 +642,19 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		}
 	}
 	if read < int(size) {
-		io.CopyN(ioutil.Discard, d.r, int64(int(size)-read))
+		io.CopyN(ioutil.Discard, src, int64(int(size)-read))
 	}
 
-	return nil
+	return d.err
 }
 
 // jumpTo advances the reader to the amount of bytes provided
 func (d *Decoder) jumpTo(bytesAhead int) error {
 	var err error
 	if bytesAhead > 0 {
-		_, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
+		_, err = d.r.Seek(int64(bytesAhead), io.SeekCurrent)
+		// TODO: benchmark against
+		// _, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
 	}
 	return err
 }
