@@ -679,12 +679,21 @@ func sampleDecodeFunc(bitDepth int, byteOrder binary.ByteOrder) (func(io.Reader,
 			return int(int16(byteOrder.Uint16(buf[:2]))), err
 		}, nil
 	case 24:
+		if byteOrder == binary.BigEndian {
+			return func(r io.Reader, buf []byte) (int, error) {
+				_, err := r.Read(buf[:3])
+				if err != nil {
+					return 0, err
+				}
+				return int(audio.Int24BETo32(buf[:3])), nil
+			}, nil
+		}
 		return func(r io.Reader, buf []byte) (int, error) {
 			_, err := r.Read(buf[:3])
 			if err != nil {
 				return 0, err
 			}
-			return int(audio.Int24BETo32(buf[:3])), nil
+			return int(audio.Int24LETo32(buf[:3])), nil
 		}, nil
 	case 32:
 		return func(r io.Reader, buf []byte) (int, error) {
