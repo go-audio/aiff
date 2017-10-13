@@ -6,3 +6,4 @@ go:
 sudo: false
 install:
   - go get -u github.com/go-audio/audio
+  - go get -u github.com/go-audio/wav
