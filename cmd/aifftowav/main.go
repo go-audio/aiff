@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	flagPath = flag.String("path", "", "The path to the file to analyze")
+	flagPath = flag.String("path", "", "The path to the aiff file to convert to wav")
 )
 
 func main() {
