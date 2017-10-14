@@ -402,9 +402,10 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	bPerSample := bytesPerSample(int(d.BitDepth))
 	// populate a file buffer to avoid multiple very small reads
 	// we need to cap the buffer size to not be bigger than the pcm chunk.
-	size := len(buf.Data) * (int(d.BitDepth) / 8)
+	size := len(buf.Data) * bPerSample
 	tmpBuf := make([]byte, size)
 	var m int
 	m, err = d.PCMChunk.R.Read(tmpBuf)
@@ -418,13 +419,21 @@ func (d *Decoder) PCMBuffer(buf *audio.IntBuffer) (n int, err error) {
 		return m, nil
 	}
 	bufR := bytes.NewReader(tmpBuf[:m])
-	sampleBuf := make([]byte, 4, 4)
+	sampleBuf := make([]byte, bPerSample, bPerSample)
+	var misaligned bool
+	if m%bPerSample > 0 {
+		misaligned = true
+	}
 
 	// Note that we populate the buffer even if the
 	// size of the buffer doesn't fit an even number of frames.
 	for n = 0; n < len(buf.Data); n++ {
 		buf.Data[n], err = decodeF(bufR, sampleBuf)
 		if err != nil {
+			// the last sample isn't a full sample but just padding.
+			if misaligned {
+				n--
+			}
 			break
 		}
 	}
