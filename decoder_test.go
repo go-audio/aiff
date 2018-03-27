@@ -3,6 +3,7 @@ package aiff
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -297,6 +298,8 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		if d.IsValidFile() != tc.isValid {
 			t.Fatalf("[%d] validation of the aiff files doesn't match expected %t, got %t - %#v", i, tc.isValid, d.IsValidFile(), d)
 		}
+		// make sure the consumer can rewind
+		d.Seek(0, io.SeekStart)
 	}
 
 }

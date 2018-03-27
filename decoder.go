@@ -296,6 +296,11 @@ func (d *Decoder) Reset() {
 	d.r.Seek(0, 0)
 }
 
+// Seek provides access to the cursor position in the PCM data
+func (d *Decoder) Seek(offset int64, whence int) (int64, error) {
+	return d.r.Seek(offset, whence)
+}
+
 // FullPCMBuffer is an inneficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
