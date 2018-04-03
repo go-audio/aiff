@@ -542,7 +542,7 @@ func (d *Decoder) readHeaders() error {
 	return d.err
 }
 
-// ReadInfo reads the underlying reader until the comm header is parsed.
+// ReadInfo reads the underlying reader to extract information.
 // This method is safe to call multiple times.
 func (d *Decoder) ReadInfo() {
 	if d == nil || d.SampleRate > 0 {
