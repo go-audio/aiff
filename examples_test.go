@@ -1,12 +1,10 @@
-package aiff_test
+package aiff
 
 import (
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/go-audio/aiff"
 )
 
 func ExampleDecoder_Duration() {
@@ -17,7 +15,7 @@ func ExampleDecoder_Duration() {
 	}
 	defer f.Close()
 
-	c := aiff.NewDecoder(f)
+	c := NewDecoder(f)
 	d, _ := c.Duration()
 	fmt.Printf("kick.aif has a duration of %f seconds\n", d.Seconds())
 	// Output:
@@ -30,6 +28,6 @@ func ExampleDecoder_IsValidFile() {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	fmt.Printf("is this file valid: %t", aiff.NewDecoder(f).IsValidFile())
+	fmt.Printf("is this file valid: %t", NewDecoder(f).IsValidFile())
 	// Output: is this file valid: true
 }

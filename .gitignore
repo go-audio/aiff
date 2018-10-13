@@ -1,3 +1,6 @@
 cpu.pdf
 cpu.prof
 aiff.test
+
+vendor/*
+!vendor/modules.txt

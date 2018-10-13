@@ -89,6 +89,9 @@ func (ch *Chunk) IsFullyRead() bool {
 
 // Jump jumps ahead in the chunk
 func (ch *Chunk) Jump(bytesAhead int) error {
+	if ch.R == nil {
+		return io.EOF
+	}
 	var err error
 	var n int64
 	if bytesAhead > 0 {
