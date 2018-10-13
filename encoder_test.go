@@ -1,4 +1,4 @@
-package aiff_test
+package aiff
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-audio/aiff"
 	"github.com/go-audio/audio"
 )
 
@@ -47,7 +46,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
-		d := aiff.NewDecoder(in)
+		d := NewDecoder(in)
 		buf, err := d.FullPCMBuffer()
 		if err != nil {
 			t.Fatal(err)
@@ -65,14 +64,14 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
 		}
 
-		e := aiff.NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
-		if err := e.Write(buf); err != nil {
+		e := NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
+		if err = e.Write(buf); err != nil {
 			t.Fatal(err)
 		}
-		if err := e.Close(); err != nil {
+		if err = e.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if err := out.Close(); err != nil {
+		if err = out.Close(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -82,7 +81,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		d2 := aiff.NewDecoder(nf)
+		d2 := NewDecoder(nf)
 		d2.ReadInfo()
 		// TODO(mattetti): using d2.Duration() messes the later Frames() call
 		info, err := nf.Stat()
@@ -123,8 +122,12 @@ func TestEncoderRoundTrip(t *testing.T) {
 
 		if tc.perfectMatch {
 			// binary comparison
-			in.Seek(0, 0)
-			nf.Seek(0, 0)
+			if _, err = in.Seek(0, 0); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = nf.Seek(0, 0); err != nil {
+				t.Fatal(err)
+			}
 			buf1 := make([]byte, 32)
 			buf2 := make([]byte, 32)
 
@@ -141,8 +144,12 @@ func TestEncoderRoundTrip(t *testing.T) {
 			}
 		}
 
-		nf.Close()
-		os.Remove(nf.Name())
+		if err = nf.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Remove(nf.Name()); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -181,14 +188,14 @@ func TestBufferEncoderRoundTrip(t *testing.T) {
 		}
 		defer in.Close()
 
-		dec := aiff.NewDecoder(in)
+		dec := NewDecoder(in)
 		dec.ReadInfo()
 
 		out, err := os.Create(tc.out)
 		if err != nil {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
 		}
-		enc := aiff.NewEncoder(out, int(dec.SampleRate), int(dec.BitDepth), int(dec.NumChans))
+		enc := NewEncoder(out, int(dec.SampleRate), int(dec.BitDepth), int(dec.NumChans))
 
 		buf := &audio.IntBuffer{Format: dec.Format(), Data: make([]int, 100000)}
 		var doneReading bool
@@ -215,10 +222,10 @@ func TestBufferEncoderRoundTrip(t *testing.T) {
 			}
 		}
 
-		if err := enc.Close(); err != nil {
+		if err = enc.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if err := out.Close(); err != nil {
+		if err = out.Close(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -228,7 +235,7 @@ func TestBufferEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		d2 := aiff.NewDecoder(nf)
+		d2 := NewDecoder(nf)
 		d2.ReadInfo()
 		info, err := nf.Stat()
 		if err != nil {
@@ -273,8 +280,12 @@ func TestBufferEncoderRoundTrip(t *testing.T) {
 
 		if tc.perfectMatch {
 			// binary comparison
-			in.Seek(0, 0)
-			nf.Seek(0, 0)
+			if _, err = in.Seek(0, 0); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = nf.Seek(0, 0); err != nil {
+				t.Fatal(err)
+			}
 			buf1 := make([]byte, 32)
 			buf2 := make([]byte, 32)
 
@@ -290,8 +301,11 @@ func TestBufferEncoderRoundTrip(t *testing.T) {
 				}
 			}
 		}
-
-		nf.Close()
-		os.Remove(nf.Name())
+		if err = nf.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Remove(nf.Name()); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

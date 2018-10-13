@@ -1,6 +1,8 @@
 package aiff
 
 import (
+	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -299,7 +301,28 @@ func TestDecoder_IsValidFile(t *testing.T) {
 			t.Fatalf("[%d] validation of the aiff files doesn't match expected %t, got %t - %#v", i, tc.isValid, d.IsValidFile(), d)
 		}
 		// make sure the consumer can rewind
-		d.Seek(0, io.SeekStart)
+		if _, err = d.Seek(0, io.SeekStart); err != nil {
+			t.Fatal(err)
+		}
 	}
+}
 
+func TestJump(t *testing.T) {
+	chunk := Chunk{}
+	if err := chunk.Jump(1); err == nil {
+		t.Fatal(errors.New("Expected EOF"))
+	}
+	data := []byte("abcdefgh")
+	chunk.R = bytes.NewReader(data)
+	chunk.Size = len(data)
+	if err := chunk.Jump(1); err != nil {
+		t.Fatal(err)
+	}
+	c, err := chunk.ReadByte()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c != data[1] {
+		t.Errorf("Expected '%x' got '%x'", data[1], c)
+	}
 }
