@@ -6,10 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
-	"runtime/pprof"
+	"reflect"
 	"testing"
 	"time"
 
@@ -18,20 +17,20 @@ import (
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
 
-func init() {
-	flag.Parse()
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
-	// Debug = true
-}
+// func init() {
+// 	flag.Parse()
+// 	if *cpuprofile != "" {
+// 		f, err := os.Create(*cpuprofile)
+// 		if err != nil {
+// 			log.Fatal("could not create CPU profile: ", err)
+// 		}
+// 		if err := pprof.StartCPUProfile(f); err != nil {
+// 			log.Fatal("could not start CPU profile: ", err)
+// 		}
+// 		defer pprof.StopCPUProfile()
+// 	}
+// 	// Debug = true
+// }
 
 func TestContainerAttributes(t *testing.T) {
 	expectations := []struct {
@@ -304,6 +303,38 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		if _, err = d.Seek(0, io.SeekStart); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestDecoderRewind(t *testing.T) {
+	f, err := os.Open("fixtures/ableton.aif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	d := NewDecoder(f)
+	d.ReadInfo()
+	buf := &audio.IntBuffer{Format: d.Format(), Data: make([]int, 512)}
+	n, err := d.PCMBuffer(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 512 {
+		t.Fatalf("expected to read 512 samples but got %d", n)
+	}
+	if err := d.Rewind(); err != nil {
+		t.Fatal(err)
+	}
+	newBuf := &audio.IntBuffer{Format: d.Format(), Data: make([]int, 512)}
+	n, err = d.PCMBuffer(newBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 512 {
+		t.Fatalf("expected to read 512 samples but got %d", n)
+	}
+	if !reflect.DeepEqual(buf.Data, newBuf.Data) {
+		t.Fatal("expected to read the same data after rewinding")
 	}
 }
 

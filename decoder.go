@@ -301,6 +301,13 @@ func (d *Decoder) Seek(offset int64, whence int) (int64, error) {
 	return d.r.Seek(offset, whence)
 }
 
+// Rewind allows the decoder to be rewound to the beginning of the PCM data.
+// This is useful if you want to keep on decoding the same file in a loop.
+func (d *Decoder) Rewind() error {
+	d.Reset()
+	return nil
+}
+
 // FullPCMBuffer is an inneficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
