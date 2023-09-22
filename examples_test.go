@@ -23,7 +23,7 @@ func ExampleDecoder_Duration() {
 }
 
 func ExampleDecoder_IsValidFile() {
-	f, err := os.Open("fixtures/kick.aif")
+	f, err := os.Open("fixtures/melina~ακ.aiff")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"time"
 
@@ -154,6 +155,7 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 func (d *Decoder) IsValidFile() bool {
 	d.ReadInfo()
 	if d.err != nil {
+		log.Fatal(d.err)
 		return false
 	}
 	if d.NumChans < 1 {
