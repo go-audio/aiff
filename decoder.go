@@ -308,7 +308,7 @@ func (d *Decoder) Rewind() error {
 	return nil
 }
 
-// FullPCMBuffer is an inneficient way to access all the PCM data contained in the
+// FullPCMBuffer is an inefficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
 func (d *Decoder) FullPCMBuffer() (*audio.IntBuffer, error) {
@@ -605,7 +605,7 @@ func (d *Decoder) ReadInfo() {
 }
 
 func (d *Decoder) parseCommChunk(size uint32) error {
-	// don't re-parse the comm chunk
+	// don't reparse the comm chunk
 	if d.NumChans > 0 {
 		return nil
 	}

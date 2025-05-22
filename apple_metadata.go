@@ -1,7 +1,7 @@
 package aiff
 
 // AppleMetadata is a list of custom fields sometimes set by Apple specific
-// progams such as Logic.
+// programs such as Logic.
 type AppleMetadata struct {
 	// Beats is the number of beats in the sample
 	Beats uint32
