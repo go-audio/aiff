@@ -52,7 +52,7 @@ func (e *Encoder) addBuffer(buf *audio.IntBuffer) error {
 	}
 
 	frameCount := buf.NumFrames()
-	// setup a buffer so we don't do many writes
+	// set up a buffer so we don't do many writes
 	bb := bytes.NewBuffer(nil)
 	var err error
 	for i := 0; i < frameCount; i++ {
@@ -169,7 +169,7 @@ func (e *Encoder) Write(buf *audio.IntBuffer) error {
 }
 
 // Close flushes the content to disk, make sure the headers are up to date
-// Note that the underlying writter is NOT being closed.
+// Note that the underlying writer is NOT being closed.
 func (e *Encoder) Close() error {
 	// go back and write total size
 	if _, err := e.w.Seek(4, 0); err != nil {

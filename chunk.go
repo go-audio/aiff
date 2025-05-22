@@ -10,7 +10,7 @@ import (
 // Chunk is a struct representing a data chunk
 // the reader is shared with the container but convenience methods
 // are provided.
-// The reader always starts at the beggining of the data.
+// The reader always starts at the beginning of the data.
 // SSND chunk is the sound chunk
 // Chunk specs:
 // http://www.onicos.com/staff/iz/formats/aiff.html
